@@ -1,103 +1,138 @@
-import Image from "next/image";
+'use client';
+
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import QRCode from "qrcode";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+
+    const file = acceptedFiles[0];
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Generate a unique file name
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("file-share")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("file-share")
+        .getPublicUrl(fileName);
+
+      // Store file metadata in the database
+      const { data: fileData, error: dbError } = await supabase
+        .from("files")
+        .insert([
+          {
+            id: crypto.randomUUID(),
+            file_path: fileName,
+            file_name: file.name,
+            file_size: file.size,
+            expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes from now
+          },
+        ])
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Generate QR code for the download page URL
+      const downloadUrl = `${window.location.origin}/download/${fileData.id}`;
+      const qrDataUrl = await QRCode.toDataURL(downloadUrl);
+      
+      setFileUrl(downloadUrl);
+      setQrCode(qrDataUrl);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    maxFiles: 1,
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">AnyShare</h1>
+          <p className="mt-2 text-gray-600">Share files instantly with a 10-minute expiry</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
+              isDragActive ? "border-blue-400 bg-blue-50" : "border-gray-300"
+            }`}
+          >
+            <input {...getInputProps()} />
+            {loading ? (
+              <p className="text-gray-600">Uploading...</p>
+            ) : isDragActive ? (
+              <p className="text-blue-600">Drop the file here...</p>
+            ) : (
+              <p className="text-gray-600">
+                Drag and drop a file here, or click to select a file
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+              {error}
+            </div>
+          )}
+
+          {fileUrl && qrCode && (
+            <div className="mt-8 space-y-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-2">Share using QR code:</p>
+                <img
+                  src={qrCode}
+                  alt="QR Code"
+                  className="mx-auto w-48 h-48"
+                />
+              </div>
+              
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-2">Or share using link:</p>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 break-all"
+                >
+                  {fileUrl}
+                </a>
+              </div>
+              
+              <p className="text-center text-sm text-gray-500">
+                This link will expire in 10 minutes
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
