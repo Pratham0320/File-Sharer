@@ -26,8 +26,8 @@ export default function DownloadPage() {
         }
 
         setFileData(data);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch file data');
       } finally {
         setLoading(false);
       }

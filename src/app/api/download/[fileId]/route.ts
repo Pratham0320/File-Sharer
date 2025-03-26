@@ -59,10 +59,11 @@ export async function GET(
       size: file.file_size,
       expiresAt: file.expires_at,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Download error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

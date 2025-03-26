@@ -24,16 +24,11 @@ export default function Home() {
       const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
 
       // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("file-share")
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
-
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("file-share")
-        .getPublicUrl(fileName);
 
       // Store file metadata in the database
       const { data: fileData, error: dbError } = await supabase
@@ -58,8 +53,8 @@ export default function Home() {
       
       setFileUrl(downloadUrl);
       setQrCode(qrDataUrl);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while uploading');
     } finally {
       setLoading(false);
     }
@@ -107,11 +102,14 @@ export default function Home() {
             <div className="mt-8 space-y-6">
               <div className="text-center">
                 <p className="text-sm text-gray-500 mb-2">Share using QR code:</p>
-                <img
-                  src={qrCode}
-                  alt="QR Code"
-                  className="mx-auto w-48 h-48"
-                />
+                <div className="mx-auto w-48 h-48">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrCode}
+                    alt="QR Code"
+                    className="w-full h-full"
+                  />
+                </div>
               </div>
               
               <div className="text-center">
