@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(
   request: NextRequest,
   { params }: { params: { fileId: string } }
-) {
+): Promise<NextResponse> {
   try {
     const fileId = params.fileId;
 
