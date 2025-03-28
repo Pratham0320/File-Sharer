@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 interface FileData {
   url: string;
@@ -22,12 +22,14 @@ export default function DownloadPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch file data');
+          throw new Error(data.error || "Failed to fetch file data");
         }
 
         setFileData(data);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch file data');
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch file data"
+        );
       } finally {
         setLoading(false);
       }
@@ -67,7 +69,7 @@ export default function DownloadPage() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Download File</h1>
-        
+
         {isExpired ? (
           <div className="text-red-600">
             <p>This file has expired and is no longer available.</p>
